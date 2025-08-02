@@ -132,7 +132,8 @@ class ListViewController: UITableViewController {
 						case let .failure(error):
 							let alert = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: .alert)
 							alert.addAction(UIAlertAction(title: "Ok", style: .default))
-							self?.presenterVC.present(alert, animated: true)
+							// self?.presenterVC.present(alert, animated: true)
+                            self?.showDetailViewController(alert, sender: self)
 						}
 						self?.refreshControl?.endRefreshing()
 					}
@@ -140,7 +141,8 @@ class ListViewController: UITableViewController {
 			} else {
 				let alert = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: .alert)
 				alert.addAction(UIAlertAction(title: "Ok", style: .default))
-				self.presenterVC.present(alert, animated: true)
+				// self.presenterVC.present(alert, animated: true)
+                self.showDetailViewController(alert, sender: self)
 				self.refreshControl?.endRefreshing()
 			}
 		}
