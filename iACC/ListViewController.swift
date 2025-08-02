@@ -165,36 +165,57 @@ class ListViewController: UITableViewController {
 	override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 		let item = items[indexPath.row]
 		if let friend = item as? Friend {
-			let vc = FriendDetailsViewController()
-			vc.friend = friend
-			navigationController?.pushViewController(vc, animated: true)
+            select(friend: friend)
 		} else if let card = item as? Card {
 			let vc = CardDetailsViewController()
 			vc.card = card
 			navigationController?.pushViewController(vc, animated: true)
 		} else if let transfer = item as? Transfer {
-			let vc = TransferDetailsViewController()
-			vc.transfer = transfer
-			navigationController?.pushViewController(vc, animated: true)
+            select(transfer: transfer)
 		} else {
 			fatalError("unknown item: \(item)")
 		}
 	}
+    
+    func select(friend: Friend) {
+        let vc = FriendDetailsViewController()
+        vc.friend = friend
+        //navigationController?.pushViewController(vc, animated: true)
+        show(vc, sender: self)
+    }
+    
+    func select(card: Card) {
+        let vc = CardDetailsViewController()
+        vc.card = card
+        // navigationController?.pushViewController(vc, animated: true)
+        show(vc, sender: self)
+    }
+    
+    func select(transfer: Transfer) {
+        let vc = TransferDetailsViewController()
+        vc.transfer = transfer
+        // navigationController?.pushViewController(vc, animated: true)
+        show(vc, sender: self)
+    }
 	
 	@objc func addCard() {
-		navigationController?.pushViewController(AddCardViewController(), animated: true)
+		// navigationController?.pushViewController(AddCardViewController(), animated: true)
+        show(AddCardViewController(), sender: self)
 	}
 	
 	@objc func addFriend() {
-		navigationController?.pushViewController(AddFriendViewController(), animated: true)
+		// navigationController?.pushViewController(AddFriendViewController(), animated: true)
+        show(AddFriendViewController(), sender: self)
 	}
 	
 	@objc func sendMoney() {
-		navigationController?.pushViewController(SendMoneyViewController(), animated: true)
+		// navigationController?.pushViewController(SendMoneyViewController(), animated: true)
+        show(SendMoneyViewController(), sender: self)
 	}
 	
 	@objc func requestMoney() {
-		navigationController?.pushViewController(RequestMoneyViewController(), animated: true)
+		// navigationController?.pushViewController(RequestMoneyViewController(), animated: true)
+        show(RequestMoneyViewController(), sender: self)
 	}
 }
 
