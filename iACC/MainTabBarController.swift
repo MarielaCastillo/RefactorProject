@@ -59,7 +59,7 @@ class MainTabBarController: UITabBarController {
 		vc.fromFriendsScreen = true
         
         vc.shouldRetry = true
-        vc.maxRetryCount = 2
+        // vc.maxRetryCount = 2
         
         vc.title = "Friends"
         
@@ -67,12 +67,27 @@ class MainTabBarController: UITabBarController {
         
         let isPremium = User.shared?.isPremium == true
         
-        vc.service = FriendsAPIItemsServiceAdapter( // injecting this service into ViewController
+        let api = FriendsAPIItemsServiceAdapter( // injecting this service into ViewController
             api: FriendsAPI.shared,
             cache: isPremium ? friendsCache : NullFriendsCache(),
             select: { [weak vc] item in
                 vc?.select(friend: item)
             })
+        
+        
+        let cache = FriendsCacheItemsServiceAdapter(
+            cache: friendsCache,
+            select: { [weak vc] item in
+                vc?.select(friend: item)
+            })
+        
+        // vc.service = ItemsServiceWithFallback(primary: api, fallback: cache)
+        // vc.service = isPremium ? api.fallback(cache) : api
+        // to remove the Boolean maxRetryCount
+        vc.service = isPremium ? api
+            .fallback(api)
+            .fallback(api)
+            .fallback(cache): api.fallback(api).fallback(api)
     
 		return vc
 	}
@@ -133,6 +148,30 @@ class MainTabBarController: UITabBarController {
 	
 }
 
+extension ItemsService {
+    func fallback(_ fallback: ItemsService) -> ItemsService {
+        ItemsServiceWithFallback(primary: self, fallback: fallback)
+    }
+}
+
+struct ItemsServiceWithFallback: ItemsService {
+    let primary: ItemsService
+    let fallback: ItemsService
+    
+    func loadItems(completion: @escaping (Result<[ItemViewModel], any Error>) -> Void) {
+        primary.loadItems { result in
+            switch result {
+            case .success:
+                completion(result)
+            case .failure:
+                fallback.loadItems(completion: completion)
+            }
+        }
+    }
+    
+    
+}
+
 struct FriendsAPIItemsServiceAdapter: ItemsService {
     let api: FriendsAPI
     let cache: FriendsCache
@@ -148,6 +187,25 @@ struct FriendsAPIItemsServiceAdapter: ItemsService {
                     cache.save(items)
                     //} // Instead of Boolean check we have the NullFriendsCache. Always checks but if it's null it does nothing
                     return items.map { item in
+                        ItemViewModel(friend: item, selection: {
+                            select(item)
+                        })
+                    }
+                })
+            }
+        }
+    }
+}
+
+struct FriendsCacheItemsServiceAdapter: ItemsService {
+    let cache: FriendsCache
+    let select: (Friend) -> Void
+    
+    func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void) {
+        cache.loadFriends { result in
+            DispatchQueue.mainAsyncIfNeeded {
+                completion(result.map { items in // in this context, we already know the type
+                    items.map { item in
                         ItemViewModel(friend: item, selection: {
                             select(item)
                         })
