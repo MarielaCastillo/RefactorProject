@@ -71,7 +71,10 @@ class ListViewController: UITableViewController {
 			FriendsAPI.shared.loadFriends { [weak self] result in
 				DispatchQueue.mainAsyncIfNeeded {
                     self?.handleAPIResult(result.map { items in // in this context, we already know the type
-                        items.map { item in
+                        if User.shared?.isPremium == true {
+                            (UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache.save(items)
+                        }
+                        return items.map { item in
                             ItemViewModel(friend: item, selection: {
                                 self?.select(friend: item)
                             })
@@ -92,10 +95,17 @@ class ListViewController: UITableViewController {
 				}
 			}
 		} else if fromSentTransfersScreen || fromReceivedTransfersScreen {
-			TransfersAPI.shared.loadTransfers { [weak self, longDateStyle] result in
+			TransfersAPI.shared.loadTransfers { [weak self, longDateStyle, fromSentTransfersScreen] result in
 				DispatchQueue.mainAsyncIfNeeded {
 					self?.handleAPIResult(result.map { items in
-                        items.map { item in
+                        var filteredItems = items
+                        if fromSentTransfersScreen {
+                            filteredItems = filteredItems.filter(\.isSender)
+                        } else {
+                            filteredItems = filteredItems.filter { !$0.isSender }
+                        }
+                        
+                        return filteredItems.map { item in
                             ItemViewModel(transfer: item, longDateStyle: longDateStyle, selection: {
                                 self?.select(transfer: item)
                             })
@@ -111,33 +121,8 @@ class ListViewController: UITableViewController {
     private func handleAPIResult(_ result: Result<[ItemViewModel], Error>) {
 		switch result {
 		case let .success(items):
-			if fromFriendsScreen && User.shared?.isPremium == true {
-				(UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache.save(items as! [Friend])
-			}
 			self.retryCount = 0
-			
-			var filteredItems = items as [Any]
-			if let transfers = items as? [Transfer] {
-				if fromSentTransfersScreen {
-					filteredItems = transfers.filter(\.isSender)
-				} else {
-					filteredItems = transfers.filter { !$0.isSender }
-				}
-			}
-			
-            self.items = filteredItems.map { item in
-                ItemViewModel(item, longDateStyle: longDateStyle, selection: { [weak self] in
-                    if let friend = item as? Friend {
-                        self?.select(friend: friend)
-                    } else if let card = item as? Card {
-                        self?.select(card: card)
-                    } else if let transfer = item as? Transfer {
-                        self?.select(transfer: transfer)
-                    } else {
-                        fatalError("unknown item: \(item)")
-                    }
-                })
-            }
+            self.items = items
 			self.refreshControl?.endRefreshing()
 			self.tableView.reloadData()
 			
