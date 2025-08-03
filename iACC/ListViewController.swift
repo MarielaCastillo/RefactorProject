@@ -70,19 +70,37 @@ class ListViewController: UITableViewController {
 		if fromFriendsScreen {
 			FriendsAPI.shared.loadFriends { [weak self] result in
 				DispatchQueue.mainAsyncIfNeeded {
-					self?.handleAPIResult(result)
+                    self?.handleAPIResult(result.map { items in // in this context, we already know the type
+                        items.map { item in
+                            ItemViewModel(friend: item, selection: {
+                                self?.select(friend: item)
+                            })
+                        }
+                    })
 				}
 			}
 		} else if fromCardsScreen {
 			CardAPI.shared.loadCards { [weak self] result in
 				DispatchQueue.mainAsyncIfNeeded {
-					self?.handleAPIResult(result)
+					self?.handleAPIResult(result.map { items in
+                        items.map { item in
+                            ItemViewModel(card: item, selection: {
+                                self?.select(card: item)
+                            })
+                        }
+                    })
 				}
 			}
 		} else if fromSentTransfersScreen || fromReceivedTransfersScreen {
-			TransfersAPI.shared.loadTransfers { [weak self] result in
+			TransfersAPI.shared.loadTransfers { [weak self, longDateStyle] result in
 				DispatchQueue.mainAsyncIfNeeded {
-					self?.handleAPIResult(result)
+					self?.handleAPIResult(result.map { items in
+                        items.map { item in
+                            ItemViewModel(transfer: item, longDateStyle: longDateStyle, selection: {
+                                self?.select(transfer: item)
+                            })
+                        }
+                    })
 				}
 			}
 		} else {
@@ -90,7 +108,7 @@ class ListViewController: UITableViewController {
 		}
 	}
 	
-	private func handleAPIResult<T>(_ result: Result<[T], Error>) {
+    private func handleAPIResult(_ result: Result<[ItemViewModel], Error>) {
 		switch result {
 		case let .success(items):
 			if fromFriendsScreen && User.shared?.isPremium == true {
