@@ -6,8 +6,11 @@ import UIKit
 
 class MainTabBarController: UITabBarController {
 	
-	convenience init() {
+    private var friendsCache: FriendsCache!
+    
+    convenience init(friendsCache: FriendsCache) { // constructor injection
 		self.init(nibName: nil, bundle: nil)
+        self.friendsCache = friendsCache
 		self.setupViewController()
 	}
 
@@ -54,6 +57,23 @@ class MainTabBarController: UITabBarController {
 	private func makeFriendsList() -> ListViewController {
 		let vc = ListViewController()
 		vc.fromFriendsScreen = true
+        
+        vc.shouldRetry = true
+        vc.maxRetryCount = 2
+        
+        vc.title = "Friends"
+        
+        vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addFriend))
+        
+        let isPremium = User.shared?.isPremium == true
+        
+        vc.service = FriendsAPIItemsServiceAdapter( // injecting this service into ViewController
+            api: FriendsAPI.shared,
+            cache: isPremium ? friendsCache : NullFriendsCache(),
+            select: { [weak vc] item in
+                vc?.select(friend: item)
+        })
+    
 		return vc
 	}
 	
@@ -75,4 +95,34 @@ class MainTabBarController: UITabBarController {
 		return vc
 	}
 	
+}
+
+struct FriendsAPIItemsServiceAdapter: ItemsService {
+    let api: FriendsAPI
+    let cache: FriendsCache
+    let select: (Friend) -> Void
+    
+    func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void) {
+        api.loadFriends { result in
+            DispatchQueue.mainAsyncIfNeeded {
+                completion(result.map { items in // in this context, we already know the type
+                    //if User.shared?.isPremium == true {
+                    //if isPremium {  // another way to inject the user here, instead of accessing the user globally
+                        //(UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache.save(items)
+                    cache.save(items)
+                    //} // Instead of Boolean check we have the NullFriendsCache. Always checks but if it's null it does nothing
+                    return items.map { item in
+                        ItemViewModel(friend: item, selection: {
+                            select(item)
+                        })
+                    }
+                })
+            }
+        }
+    }
+}
+
+// Null Object Pattern
+class NullFriendsCache: FriendsCache { // Inheritance
+    override func save(_ newFriends: [Friend]) {}
 }

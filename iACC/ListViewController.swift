@@ -8,46 +8,6 @@ protocol ItemsService {
     func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void)
 }
 
-struct FriendsAPIItemsServiceAdapter: ItemsService {
-    let api: FriendsAPI
-    let cache: FriendsCache
-    let isPremium: Bool
-    let select: (Friend) -> Void
-    
-    func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void) {
-        api.loadFriends { result in
-            DispatchQueue.mainAsyncIfNeeded {
-                completion(result.map { items in // in this context, we already know the type
-                    //if User.shared?.isPremium == true {
-                    if isPremium {  // another way to inject the user here, instead of accessing the user globally
-                        //(UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache.save(items)
-                        cache.save(items)
-                    }
-                    return items.map { item in
-                        ItemViewModel(friend: item, selection: {
-                            select(item)
-                        })
-                    }
-                })
-            }
-        }
-    }
-}
-/* // this doesn't work because it violates the Interface Segregation Principle:
-protocol APIService {
-    // func loadFriends(completion: @escaping (Result<[Friend], Error>) -> Void)
-    func loadFriends(completion: @escaping (Result<[Friend], any Error>) -> Void)
-    func loadCards(completion: @escaping (Result<[Card], any Error>) -> Void)
-    func loadTransfers(completion: @escaping (Result<[Transfer], any Error>) -> Void)
-}
-
-extension FriendsAPI: APIService {
-    func loadCards(completion: @escaping (Result<[Card], any Error>) -> Void) {
-        fatalError("Cannot implement") // we would have to add for friends, cards, and transfers. But we only need friends here
-    }
-}
- */
-
 class ListViewController: UITableViewController {
 	var items = [ItemViewModel]()
 	
@@ -70,15 +30,7 @@ class ListViewController: UITableViewController {
 		refreshControl = UIRefreshControl()
 		refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
 		
-		if fromFriendsScreen {
-			shouldRetry = true
-			maxRetryCount = 2
-			
-			title = "Friends"
-			
-			navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addFriend))
-			
-		} else if fromCardsScreen {
+        if fromCardsScreen {
 			shouldRetry = false
 			
 			title = "Cards"
@@ -114,15 +66,8 @@ class ListViewController: UITableViewController {
 	@objc private func refresh() {
 		refreshControl?.beginRefreshing()
 		if fromFriendsScreen {
-            service = FriendsAPIItemsServiceAdapter(
-                api: FriendsAPI.shared,
-                cache: (UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache,
-                isPremium: User.shared?.isPremium == true,
-                select: { [weak self] item in
-                    self?.select(friend: item)
-            })
-            
             service?.loadItems(completion: handleAPIResult)
+            
 		} else if fromCardsScreen {
             CardAPI.shared.loadCards { [weak self] result in
 				DispatchQueue.mainAsyncIfNeeded {
