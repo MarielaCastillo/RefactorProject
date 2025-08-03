@@ -72,22 +72,22 @@ class MainTabBarController: UITabBarController {
             cache: isPremium ? friendsCache : NullFriendsCache(),
             select: { [weak vc] item in
                 vc?.select(friend: item)
-            })
+            }
+        ).retry(2)
         
         
         let cache = FriendsCacheItemsServiceAdapter(
             cache: friendsCache,
             select: { [weak vc] item in
                 vc?.select(friend: item)
-            })
+            }
+        )
         
         // vc.service = ItemsServiceWithFallback(primary: api, fallback: cache)
         // vc.service = isPremium ? api.fallback(cache) : api
         // to remove the Boolean maxRetryCount
-        vc.service = isPremium ? api
-            .fallback(api)
-            .fallback(api)
-            .fallback(cache): api.fallback(api).fallback(api)
+        // vc.service = isPremium ? api.retry(2).fallback(cache): api.retry(2)
+        vc.service = isPremium ? api.fallback(cache): api
     
 		return vc
 	}
@@ -151,6 +151,14 @@ class MainTabBarController: UITabBarController {
 extension ItemsService {
     func fallback(_ fallback: ItemsService) -> ItemsService {
         ItemsServiceWithFallback(primary: self, fallback: fallback)
+    }
+    
+    func retry(_ retryCount: UInt) -> ItemsService {
+        var service: ItemsService = self
+        for _ in 0..<retryCount {
+            service = service.fallback(self)
+        }
+        return service
     }
 }
 
