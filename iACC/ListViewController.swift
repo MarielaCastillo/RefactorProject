@@ -98,14 +98,9 @@ class ListViewController: UITableViewController {
 			TransfersAPI.shared.loadTransfers { [weak self, longDateStyle, fromSentTransfersScreen] result in
 				DispatchQueue.mainAsyncIfNeeded {
 					self?.handleAPIResult(result.map { items in
-                        var filteredItems = items
-                        if fromSentTransfersScreen {
-                            filteredItems = filteredItems.filter(\.isSender)
-                        } else {
-                            filteredItems = filteredItems.filter { !$0.isSender }
-                        }
-                        
-                        return filteredItems.map { item in
+                        items
+                            .filter { fromSentTransfersScreen ? $0.isSender : !$0.isSender }
+                            .map { item in
                             ItemViewModel(transfer: item, longDateStyle: longDateStyle, selection: {
                                 self?.select(transfer: item)
                             })
@@ -186,18 +181,6 @@ struct ItemViewModel {
     var title: String
     var subtitle: String
     let select: () -> Void
-    
-    init(_ item: Any, longDateStyle: Bool, selection: @escaping () -> Void) {
-        if let friend = item as? Friend {
-            self.init(friend: friend, selection: selection)
-        } else if let card = item as? Card {
-            self.init(card: card, selection: selection)
-        } else if let transfer = item as? Transfer {
-            self.init(transfer: transfer, longDateStyle: longDateStyle, selection: selection)
-        } else {
-            fatalError("unknown item: \(item)")
-        }
-    }
 }
     
 extension ItemViewModel {
